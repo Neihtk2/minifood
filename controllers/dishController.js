@@ -40,7 +40,7 @@ const getDishById = asyncHandler(async (req, res) => {
   try {
     const dish = await Dish.findById(req.params.id);
     if (!dish) return handleError(res, 404, "Không tìm thấy món ăn");
-    
+
     res.json({
       success: true,
       data: dish
@@ -105,7 +105,7 @@ const deleteDish = asyncHandler(async (req, res) => {
     if (dish.image) {
       const urlParts = dish.image.split('/');
       const imageKey = urlParts.slice(3).join('/');
-      
+
       await s3Client.send(
         new DeleteObjectCommand({
           Bucket: process.env.S3_BUCKET_NAME,

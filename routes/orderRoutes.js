@@ -1,17 +1,33 @@
 const express = require('express');
 const router = express.Router();
-const orderController = require('../controllers/orderController');
 const { protect, checkRole } = require('../utils/authMiddleware');
-const {createOrder, getOrders} = require('../controllers/orderController');
-
+const {createOrder, getOrders, cancelOrder, updateOrderStatus, unlockUser} = require('../controllers/orderController');
+// const {checkAccountLocked }= require('../utils/checkAccountLocked');  
 // Tạo đơn hàng - Chỉ user
 router.route('/').post(
   protect, 
   checkRole('user'), 
+  // checkAccountLocked,
   createOrder
 ).get(
-  protect, 
-  checkRole('user'), 
+  protect,  
   getOrders
+);
+router.route('/cancel/:id').patch(
+  protect, 
+  checkRole('user', 'admin', 'staff'), 
+  cancelOrder
+);
+router.patch(
+  '/status/:id',
+  protect,
+  checkRole('admin', 'staff'),
+  updateOrderStatus
+);
+router.patch(
+  '/unlock/:userId',
+  protect,
+  checkRole('admin'),
+  unlockUser
 );
 module.exports = router;

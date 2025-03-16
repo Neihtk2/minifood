@@ -8,7 +8,7 @@ const {
 const orderController = require('../controllers/orderController');
 const cartController = require('../controllers/cartController');
 const { protect, checkRole } = require('../utils/authMiddleware');
-const{addToCart, getCart} = require('../controllers/cartController');
+const{addToCart, getCart, removeCartItem} = require('../controllers/cartController');
 
 const router = express.Router();
 
@@ -23,6 +23,10 @@ router.route('/cart').post(
   protect, 
   checkRole('user'), 
   getCart
+).delete(
+  protect,
+  checkRole('user'),
+  removeCartItem
 );
 
 router.route('/profile')

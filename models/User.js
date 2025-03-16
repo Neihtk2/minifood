@@ -10,10 +10,18 @@ const userSchema = new mongoose.Schema({
     _id: Number,
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  name: { type: String, required: true },
+  name: { type: String },
   role: { type: String, enum: ['user', 'staff', 'admin'], default: 'user' },
   phone: String,
   address: String,
+  rejectCount: {
+    type: Number,
+    default: 0
+  },
+  isLocked: {
+    type: Boolean,
+    default: false
+  },
   createdAt: { type: String, default: Date.now }
 });
 userSchema.pre('save', async function (next) {

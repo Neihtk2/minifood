@@ -28,7 +28,15 @@ const cartSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  items: [cartItemSchema]
-}, { timestamps: true });
+  items: [cartItemSchema],
+  createdAt: { type: String, default: Date.now }
+});
+cartSchema.pre('save', async function (next) {
+  // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
+  const now = new Date();
+  const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+  this.createdAt = formattedDate;
 
+  next();
+});
 module.exports = mongoose.model('Cart', cartSchema);

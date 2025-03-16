@@ -115,7 +115,46 @@ const getCart = asyncHandler(async (req, res) => {
     });
   }
 });
+const removeCartItem = asyncHandler(async (req, res) => {
+  const { itemId } = req.body;
+
+  try {
+    const cart = await Cart.findOne({ userId: req.user._id });
+    if (!cart) {
+      return res.status(404).json({
+        success: false,
+        message: "Giỏ hàng trống"
+      });
+    }
+
+    const itemIndex = cart.items.findIndex(item => 
+      item._id.toString() === itemId
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Món không tồn tại trong giỏ"
+      });
+    }
+
+    cart.items.splice(itemIndex, 1);
+    await cart.save();
+
+    res.json({
+      success: true,
+      data: cart
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 module.exports = {
   addToCart,
-  getCart
+  getCart,
+  removeCartItem
 };

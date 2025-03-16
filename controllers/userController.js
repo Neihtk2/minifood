@@ -8,17 +8,29 @@ const validator = require('validator');
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
-      .select('-password') // Không trả về password
+    const user = await User.findOne({
+      _id: req.user._id // Sửa thành object query
+    })
+      .select('-password')
       .lean();
 
     if (!user) {
-      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+      return res.status(404).json({
+        success: false, // Thêm trạng thái success
+        message: 'Không tìm thấy người dùng'
+      });
     }
 
-    res.json(user);
+    res.json({
+      success: true,
+      data: user // Format response thống nhất
+    });
+
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi máy chủ, vui lòng thử lại sau' });
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ, vui lòng thử lại sau'
+    });
   }
 });
 
@@ -28,8 +40,10 @@ const getUserProfile = asyncHandler(async (req, res) => {
 // @access  Private
 const updateUserProfile = asyncHandler(async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-
+    const user = await User.findOne({
+      _id: req.user._id
+    }).select('-password')
+      .lean();;
     if (!user) {
       return res.status(404).json({ message: 'Không tìm thấy người dùng' });
     }
@@ -69,7 +83,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     }
 
     // Cập nhật thông tin người dùng
-    const updatedUser = await User.findByIdAndUpdate(req.user.id, updates, { new: true });
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, updates, { new: true });
 
     res.json({
       message: 'Cập nhật thông tin thành công',
