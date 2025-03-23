@@ -19,7 +19,7 @@ const addToCart = asyncHandler(async (req, res) => {
 
   try {
     // Tìm món ăn bằng ID
-    const dish = await Dish.findById(dishId).select('name price image')
+    const dish = await Dish.findById(dishId).select('name price image category')
     if (!dish) {
       return res.status(404).json({
         success: false,
@@ -29,7 +29,7 @@ const addToCart = asyncHandler(async (req, res) => {
 
     // Tìm hoặc tạo giỏ hàng
     let cart = await Cart.findOne({ userId: req.user._id });
-    
+
     if (!cart) {
       cart = await Cart.create({
         userId: req.user._id,
@@ -37,23 +37,26 @@ const addToCart = asyncHandler(async (req, res) => {
           name: dish.name,
           price: dish.price,
           image: dish.image,
+          category: dish.category,
           quantity
         }]
       });
     } else {
-      const existingItemIndex = cart.items.findIndex(item => 
+      const existingItemIndex = cart.items.findIndex(item =>
         item.name === dish.name
       );
 
       if (existingItemIndex !== -1) {
         // Cập nhật số lượng nếu món đã có
-        cart.items[existingItemIndex].quantity += quantity;
+        cart.items[existingItemIndex].quantity =
+          Number(cart.items[existingItemIndex].quantity) + Number(quantity);
       } else {
         // Thêm mới nếu món chưa có
         cart.items.push({
           name: dish.name,
           price: dish.price,
           image: dish.image,
+          category: dish.category,
           quantity
         });
       }
@@ -76,7 +79,7 @@ const addToCart = asyncHandler(async (req, res) => {
 const getCart = asyncHandler(async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.user._id });
-    
+
     if (!cart || cart.items.length === 0) {
       return res.status(200).json({
         success: true,
@@ -94,6 +97,7 @@ const getCart = asyncHandler(async (req, res) => {
       price: item.price,
       image: item.image,
       quantity: item.quantity,
+      category: item.category,
       total: item.price * item.quantity
     }));
 
@@ -127,7 +131,7 @@ const removeCartItem = asyncHandler(async (req, res) => {
       });
     }
 
-    const itemIndex = cart.items.findIndex(item => 
+    const itemIndex = cart.items.findIndex(item =>
       item._id.toString() === itemId
     );
 

@@ -18,7 +18,11 @@ const cartItemSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Số lượng là bắt buộc'],
     min: [1, 'Số lượng tối thiểu là 1']
-  }
+  },
+  category: {
+    type: String,
+    // required: [true, 'Giá món là bắt buộc'],
+  },
 });
 
 const cartSchema = new mongoose.Schema({
@@ -29,14 +33,14 @@ const cartSchema = new mongoose.Schema({
     unique: true
   },
   items: [cartItemSchema],
-  createdAt: { type: String, default: Date.now }
+  createdAt: { type: Date, default: Date.now }
 });
-cartSchema.pre('save', async function (next) {
-  // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
-  const now = new Date();
-  const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-  this.createdAt = formattedDate;
+// cartSchema.pre('save', async function (next) {
+//   // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
+//   const now = new Date();
+//   const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+//   this.createdAt = formattedDate;
 
-  next();
-});
+//   next();
+// });
 module.exports = mongoose.model('Cart', cartSchema);
