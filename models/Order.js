@@ -18,6 +18,10 @@ const orderItemSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 1
+  },
+  category: {
+    type:
+      String
   }
 });
 
@@ -54,17 +58,17 @@ const orderSchema = new mongoose.Schema({
     enum: ["pending", "processing", "delivering", "completed", "cancelled", "rejected"],
     default: "pending"
   },
-  createdAt: { type: String, default: Date.now }
+  createdAt: { type: Date, default: Date.now }
 }
-// ,{ timestamps: true }
+  // ,{ timestamps: true }
 );
-orderSchema.pre('save', async function (next) {
-  
-  // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
-  const now = new Date();
-  const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-  this.createdAt = formattedDate;
+// orderSchema.pre('save', async function (next) {
 
-  next();
-});
+//   // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
+//   const now = new Date();
+//   const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+//   this.createdAt = formattedDate;
+
+//   next();
+// });
 module.exports = mongoose.model("Order", orderSchema);

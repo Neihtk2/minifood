@@ -1,21 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const { protect, checkRole } = require('../utils/authMiddleware');
-const {createOrder, getOrders, cancelOrder, updateOrderStatus, unlockUser} = require('../controllers/orderController');
+const { createOrder, getOrders, cancelOrder, updateOrderStatus, unlockUser, getTopSoldDishes } = require('../controllers/orderController');
 // const {checkAccountLocked }= require('../utils/checkAccountLocked');  
 // Tạo đơn hàng - Chỉ user
 router.route('/').post(
-  protect, 
-  checkRole('user'), 
+  protect,
+  checkRole('user'),
   // checkAccountLocked,
   createOrder
 ).get(
-  protect,  
+  protect,
   getOrders
 );
 router.route('/cancel/:id').patch(
-  protect, 
-  checkRole('user', 'admin', 'staff'), 
+  protect,
+  checkRole('user', 'admin', 'staff'),
   cancelOrder
 );
 router.patch(
@@ -30,4 +30,7 @@ router.patch(
   checkRole('admin'),
   unlockUser
 );
+router.get('/top-dishes',
+  //  protect, 
+  getTopSoldDishes);
 module.exports = router;

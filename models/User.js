@@ -2,12 +2,12 @@
 const mongoose = require('mongoose');
 
 const counterSchema = new mongoose.Schema({
-    _id: { type: String, required: true },
-    seq: { type: Number, default: 0 }
-  });
-  const Counter = mongoose.model('Counter', counterSchema);
+  _id: { type: String, required: true },
+  seq: { type: Number, default: 0 }
+});
+const Counter = mongoose.model('Counter', counterSchema);
 const userSchema = new mongoose.Schema({
-    _id: Number,
+  _id: Number,
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   name: { type: String },
@@ -22,24 +22,24 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  createdAt: { type: String, default: Date.now }
+  createdAt: { type: Date, default: Date.now }
 });
 userSchema.pre('save', async function (next) {
-    if (!this._id) {
-      const counter = await Counter.findByIdAndUpdate(
-        { _id: 'userId' },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-      );
-      this._id = counter.seq;
-    }
-  
-    // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
-    const now = new Date();
-    const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-    this.createdAt = formattedDate;
-  
-    next();
-  });
+  if (!this._id) {
+    const counter = await Counter.findByIdAndUpdate(
+      { _id: 'userId' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    this._id = counter.seq;
+  }
+
+  // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
+  // const now = new Date();
+  // const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+  // this.createdAt = formattedDate;
+
+  next();
+});
 
 module.exports = mongoose.model('User', userSchema);

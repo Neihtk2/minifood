@@ -87,13 +87,13 @@ voucherSchema.methods.checkUserUsage = function (userId) {
     const userUsage = this.usersUsage.find(u => u.userId === userId);
     return userUsage ? this.maxUsagePerUser - userUsage.count : this.maxUsagePerUser;
 };
-voucherSchema.pre('save', async function (next) {
-    // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
-    const now = new Date();
-    const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-    this.createdAt = formattedDate;
-    next();
-});
+// voucherSchema.pre('save', async function (next) {
+//     // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
+//     const now = new Date();
+//     const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+//     this.createdAt = formattedDate;
+//     next();
+// });
 voucherSchema.pre("remove", async function (next) {
     try {
         if (this.image) {

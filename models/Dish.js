@@ -10,14 +10,14 @@ const dishSchema = new mongoose.Schema({
   category: { type: String, enum: ['main', 'beverage', 'dessert'], required: true },
   // isAvailable: { type: Boolean, default: true },
   // stock: { type: Number, default: 0 }
-  createdAt: { type: String, default: Date.now }
+  createdAt: { type: Date, default: Date.now }
 });
-dishSchema.pre('save', async function (next) {
-  // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
-  const now = new Date();
-  const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-  this.createdAt = formattedDate;
+// dishSchema.pre('save', async function (next) {
+//   // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
+//   const now = new Date();
+//   const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+//   this.createdAt = formattedDate;
 
-  next();
-});
+//   next();
+// });
 module.exports = mongoose.model('Dish', dishSchema);
