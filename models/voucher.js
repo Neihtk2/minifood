@@ -1,7 +1,4 @@
 const mongoose = require("mongoose");
-const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
-const s3Client = require("../config/s3Client");
-
 const voucherSchema = new mongoose.Schema({
     code: {
         type: String,
@@ -17,11 +14,6 @@ const voucherSchema = new mongoose.Schema({
     description: {
         type: String,
         default: ''
-    },
-    discountType: {
-        type: String,
-        enum: ["percentage", "fixed"],
-        required: true
     },
     value: {
         type: Number,
@@ -48,7 +40,7 @@ const voucherSchema = new mongoose.Schema({
     },
     maxUses: {
         type: Number,
-        default: null
+        default: 0
     },
     usedCount: {
         type: Number,
@@ -87,29 +79,6 @@ voucherSchema.methods.checkUserUsage = function (userId) {
     const userUsage = this.usersUsage.find(u => u.userId === userId);
     return userUsage ? this.maxUsagePerUser - userUsage.count : this.maxUsagePerUser;
 };
-// voucherSchema.pre('save', async function (next) {
-//     // Lấy ngày giờ hiện tại và format thành "dd/mm/yyyy"
-//     const now = new Date();
-//     const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-//     this.createdAt = formattedDate;
-//     next();
-// });
-voucherSchema.pre("remove", async function (next) {
-    try {
-        if (this.image) {
-            const key = this.image.split("/").slice(3).join("/");
-            await s3Client.send(
-                new DeleteObjectCommand({
-                    Bucket: process.env.S3_BUCKET_NAME,
-                    Key: key
-                })
-            );
-            console.log(`Đã xóa ảnh voucher ${this.code}`);
-        }
-    } catch (error) {
-        console.error("Lỗi xóa ảnh:", error.message);
-    }
-    next();
-});
+;
 
 module.exports = mongoose.model("Voucher", voucherSchema);

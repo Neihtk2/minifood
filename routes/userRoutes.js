@@ -5,8 +5,8 @@ const {
   updateUserProfile,
   getUsers
 } = require('../controllers/userController');
-const orderController = require('../controllers/orderController');
-const cartController = require('../controllers/cartController');
+// const orderController = require('../controllers/orderController');
+// const cartController = require('../controllers/cartController');
 const { protect, checkRole } = require('../utils/authMiddleware');
 const{addToCart, getCart, removeCartItem} = require('../controllers/cartController');
 

@@ -7,18 +7,11 @@ const { createVoucher,
     updateVoucher,
     deleteVoucher,
     getAvailableVouchers, applyVoucher } = require("../controllers/voucherController");
-const upload = require('../utils/upload');
 
-// Admin routes
-// router.post(
-//     "/",
-//     protect,
-//     checkRole("admin"),
-//     createVoucher
-// );
-router.post("/", protect, checkRole("admin"), upload.single('image'), createVoucher);
+
+router.post("/", protect, checkRole("admin"), createVoucher);
 router.get("/", protect, checkRole("admin"), getAllVouchers);
-router.put("/:id", protect, checkRole("admin"), upload.single('image'), updateVoucher);
+router.put("/:id", protect, checkRole("admin"), updateVoucher);
 router.delete("/:id", protect, checkRole("admin"), deleteVoucher);
 
 // User routes

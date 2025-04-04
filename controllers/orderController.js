@@ -1,20 +1,157 @@
 // controllers/orderController.js
 const Order = require("../models/Order");
+const Voucher = require("../models/voucher");
 const Cart = require("../models/Cart");
 const asyncHandler = require("express-async-handler");
 const User = require("../models/User");
 
+// const createOrder = asyncHandler(async (req, res) => {
+//   try {
+//     const {
+//       customerName,
+//       phone,
+//       deliveryAddress,
+//       paymentMethod,
+//       voucherCode
+//     } = req.body;
+
+//     // Validate input
+//     if (!customerName || !phone || !deliveryAddress || !paymentMethod) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Vui lòng điền đầy đủ thông tin"
+//       });
+//     }
+
+//     // Kiểm tra phương thức thanh toán
+//     if (!["cash", "cod"].includes(paymentMethod)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Phương thức thanh toán không hợp lệ"
+//       });
+//     }
+
+//     // Lấy giỏ hàng
+//     const cart = await Cart.findOne({ userId: req.user._id });
+//     if (!cart || cart.items.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Giỏ hàng trống"
+//       });
+//     }
+
+//     // Tạo items từ giỏ hàng
+//     const orderItems = cart.items.map(item => ({
+//       name: item.name,
+//       price: item.price,
+//       image: item.image,
+//       quantity: item.quantity,
+//       category: item.category
+//     }));
+
+//     // Tính tổng tiền
+//     const orderTotal = cart.items.reduce(
+//       (sum, item) => sum + (item.price * item.quantity),
+//       0
+//     );
+//     let discount = 0;
+//     let voucherData = null;
+
+//     if (voucherCode) {
+//       const voucher = await Voucher.findOne({ code: voucherCode.toUpperCase() }).session(session);
+
+//       // Kiểm tra voucher (tương tự như trong applyVoucher)
+//       if (!voucher) {
+//         await session.abortTransaction();
+//         return res.status(404).json({
+//           success: false,
+//           message: "Mã giảm giá không tồn tại"
+//         });
+//       }
+
+//       const now = new Date();
+//       if (now < voucher.startDate || now > voucher.endDate) {
+//         await session.abortTransaction();
+//         return res.status(400).json({
+//           success: false,
+//           message: "Mã giảm giá không trong thời gian hiệu lực"
+//         });
+//       }
+
+//       if (orderTotal < voucher.minOrderValue) {
+//         await session.abortTransaction();
+//         return res.status(400).json({
+//           success: false,
+//           message: `Đơn hàng tối thiểu ${voucher.minOrderValue} để áp dụng voucher`
+//         });
+//       }
+
+//       // Tính toán giảm giá
+//       if (voucher.discountType === "percentage") {
+//         discount = orderTotal * (voucher.value / 100);
+//         if (voucher.maxDiscountAmount && discount > voucher.maxDiscountAmount) {
+//           discount = voucher.maxDiscountAmount;
+//         }
+//       } else {
+//         discount = voucher.value;
+//       }
+
+//       // Cập nhật lượt dùng voucher
+//       voucher.usedCount += 1;
+//       voucher.usersUsage.push({ userId: req.user._id, count: 1 });
+//       await voucher.save({ session });
+
+//       voucherData = {
+//         code: voucher.code,
+//         discount,
+//         voucherId: voucher._id
+//       };
+//     }
+
+
+//     // Tạo đơn hàng
+//     const order = await Order.create({
+//       userId: req.user._id,
+//       customerName,
+//       phone,
+//       deliveryAddress,
+//       paymentMethod,
+//       items: orderItems,
+//       total:orderTotal- discount,
+//       // finalTotal: orderTotal - discount,
+//       voucher: voucherData
+//     });
+
+//     // Xóa giỏ hàng
+//     await Cart.deleteOne({ _id: cart._id });
+
+//     res.status(201).json({
+//       success: true,
+//       data: order
+//     });
+
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "Lỗi server: " + error.message
+//     });
+//   }
+// });
 const createOrder = asyncHandler(async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const {
       customerName,
       phone,
       deliveryAddress,
-      paymentMethod
+      paymentMethod,
+      voucherCode
     } = req.body;
 
     // Validate input
     if (!customerName || !phone || !deliveryAddress || !paymentMethod) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "Vui lòng điền đầy đủ thông tin"
@@ -23,6 +160,7 @@ const createOrder = asyncHandler(async (req, res) => {
 
     // Kiểm tra phương thức thanh toán
     if (!["cash", "cod"].includes(paymentMethod)) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "Phương thức thanh toán không hợp lệ"
@@ -30,8 +168,9 @@ const createOrder = asyncHandler(async (req, res) => {
     }
 
     // Lấy giỏ hàng
-    const cart = await Cart.findOne({ userId: req.user._id });
+    const cart = await Cart.findOne({ userId: req.user._id }).session(session);
     if (!cart || cart.items.length === 0) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "Giỏ hàng trống"
@@ -48,24 +187,114 @@ const createOrder = asyncHandler(async (req, res) => {
     }));
 
     // Tính tổng tiền
-    const total = cart.items.reduce(
+    const orderTotal = cart.items.reduce(
       (sum, item) => sum + (item.price * item.quantity),
       0
     );
 
+    let discount = 0;
+    let voucherData = null;
+
+    // Xử lý voucher
+    if (voucherCode) {
+      const voucher = await Voucher.findOne({
+        code: voucherCode.toUpperCase()
+      }).session(session);
+
+      // Kiểm tra voucher tồn tại
+      if (!voucher) {
+        await session.abortTransaction();
+        return res.status(404).json({
+          success: false,
+          message: "Mã giảm giá không tồn tại"
+        });
+      }
+
+      // Kiểm tra thời hạn
+      const now = new Date();
+      if (now < voucher.startDate || now > voucher.endDate) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          success: false,
+          message: "Mã giảm giá không trong thời gian hiệu lực"
+        });
+      }
+
+      // Kiểm tra đơn hàng tối thiểu
+      if (orderTotal < voucher.minOrderValue) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          success: false,
+          message: `Đơn hàng tối thiểu ${voucher.minOrderValue} để áp dụng voucher`
+        });
+      }
+
+      // Kiểm tra số lượt sử dụng
+      if (voucher.usedCount >= voucher.maxUsage) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          success: false,
+          message: "Voucher đã hết lượt sử dụng"
+        });
+      }
+
+      // Kiểm tra số lượt sử dụng của user
+      const userUsage = voucher.usersUsage.find(usage =>
+        usage.userId.equals(req.user._id)
+      );
+      if (userUsage && userUsage.count >= voucher.maxUsagePerUser) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          success: false,
+          message: "Bạn đã dùng hết lượt cho voucher này"
+        });
+      }
+
+      // Tính toán giảm giá
+
+      if (orderTotal >= voucher.minOrderValue) {
+        discount = voucher.maxDiscountAmount;
+      } else {
+        discount = 0;
+      }
+
+      // Cập nhật voucher
+      voucher.usedCount += 1;
+      if (userUsage) {
+        userUsage.count += 1;
+      } else {
+        voucher.usersUsage.push({
+          userId: req.user._id,
+          count: 1
+        });
+      }
+      await voucher.save({ session });
+
+      voucherData = {
+        code: voucher.code,
+        discount: discount,
+        voucherId: voucher._id
+      };
+    }
+
     // Tạo đơn hàng
-    const order = await Order.create({
+    const [order] = await Order.create([{
       userId: req.user._id,
       customerName,
       phone,
       deliveryAddress,
       paymentMethod,
       items: orderItems,
-      total
-    });
+      total: Number((orderTotal - discount).toFixed(2)),
+      voucher: voucherData
+    }], { session });
 
     // Xóa giỏ hàng
-    await Cart.deleteOne({ _id: cart._id });
+
+    cart.items = [];
+    await cart.save({ session });
+
+    await session.commitTransaction();
 
     res.status(201).json({
       success: true,
@@ -73,10 +302,13 @@ const createOrder = asyncHandler(async (req, res) => {
     });
 
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       success: false,
       message: "Lỗi server: " + error.message
     });
+  } finally {
+    session.endSession();
   }
 });
 const getOrders = asyncHandler(async (req, res) => {
@@ -92,7 +324,7 @@ const getOrders = asyncHandler(async (req, res) => {
         break;
 
       case 'staff':
-        query.status = { $in: ['pending', 'processing', 'delivering'] };
+        query.status = { $in: ['pending', 'processing', 'delivering', 'completed'] };
         break;
 
       case 'admin':

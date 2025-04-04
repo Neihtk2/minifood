@@ -51,9 +51,10 @@ const getDishById = asyncHandler(async (req, res) => {
 });
 
 const createDish = asyncHandler(async (req, res) => {
+
   const { name, price, category } = req.body;
   const imageFile = req.file;
-
+  console.log("dữ liệu", req.body);
   // Validation
   if (!name || !price || !category) {
     return handleError(res, 400, "Vui lòng điền đầy đủ thông tin");
@@ -65,6 +66,10 @@ const createDish = asyncHandler(async (req, res) => {
 
   if (!imageFile) {
     return handleError(res, 400, "Vui lòng chọn ảnh");
+  }
+  const priceNumber = Number(price);
+  if (isNaN(priceNumber)) {
+    return handleError(res, 400, "Giá tiền phải là số hợp lệ");
   }
 
   try {
@@ -82,7 +87,7 @@ const createDish = asyncHandler(async (req, res) => {
     // Tạo món ăn
     const dish = await Dish.create({
       name,
-      price: Number(price),
+      price: priceNumber,
       category,
       image: `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`,
     });
