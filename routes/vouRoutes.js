@@ -10,7 +10,7 @@ const { createVoucher,
 
 
 router.post("/", protect, checkRole("admin"), createVoucher);
-router.get("/", protect, checkRole("admin"), getAllVouchers);
+router.get("/", protect, getAllVouchers);
 router.put("/:id", protect, checkRole("admin"), updateVoucher);
 router.delete("/:id", protect, checkRole("admin"), deleteVoucher);
 

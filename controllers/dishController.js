@@ -26,7 +26,7 @@ const handleError = (res, statusCode, message) => {
 
 const getDishes = asyncHandler(async (req, res) => {
   try {
-    const dishes = await Dish.find({});
+    const dishes = await Dish.find().sort({ name: 1 });
     res.json({
       success: true,
       data: dishes
@@ -52,7 +52,7 @@ const getDishById = asyncHandler(async (req, res) => {
 
 const createDish = asyncHandler(async (req, res) => {
 
-  const { name, price, category } = req.body;
+  const { name, price, category, description } = req.body;
   const imageFile = req.file;
   console.log("dữ liệu", req.body);
   // Validation
@@ -89,6 +89,7 @@ const createDish = asyncHandler(async (req, res) => {
       name,
       price: priceNumber,
       category,
+      description: description || '',
       image: `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`,
     });
 
@@ -190,6 +191,32 @@ const updateDish = asyncHandler(async (req, res) => {
     handleError(res, 500, `Lỗi cập nhật: ${error.message}`);
   }
 });
+const getNewDishes = asyncHandler(async (req, res) => {
+  try {
+    const newDishes = await Dish.find()
+      .sort({ createdAt: -1 }) // Sắp xếp từ mới nhất đến cũ nhất
+      .limit(5) // Giới hạn 5 kết quả
+      .lean(); // Trả về plain JavaScript objects
+
+    if (!newDishes.length) {
+      return res.status(200).json({
+        success: true,
+        message: "Chưa có món ăn nào được thêm",
+        data: []
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: newDishes.length,
+      data: newDishes
+    });
+
+  } catch (error) {
+    handleError(res, 500, `Lỗi khi lấy món ăn mới: ${error.message}`);
+  }
+});
+
 
 
 module.exports = {
@@ -198,4 +225,5 @@ module.exports = {
   createDish,
   deleteDish,
   updateDish,
+  getNewDishes
 };

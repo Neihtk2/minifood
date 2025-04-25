@@ -1,5 +1,6 @@
 // controllers/userController.js
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const validator = require('validator');
 
@@ -109,9 +110,43 @@ const getUsers = asyncHandler(async (req, res) => {
     .lean();
   res.json(users);
 });
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
 
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+  }
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return res.status(404).json({ message: 'Người dùng không tồn tại' });
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+  if (!isMatch) {
+    return res.status(400).json({ message: 'Mật khẩu hiện tại không đúng' });
+  }
+  const isSame = await bcrypt.compare(newPassword, user.password);
+  if (isSame) {
+    return res.status(400).json({ message: 'Mật khẩu mới không được trùng với mật khẩu hiện tại' });
+  }
+
+
+  const hashed = await bcrypt.hash(newPassword, 10);
+  user.password = hashed;
+  await user.save();
+
+  res.json({ message: 'Đổi mật khẩu thành công' });
+});
 module.exports = {
   getUserProfile,
   updateUserProfile,
-  getUsers
+  getUsers,
+  changePassword
 };

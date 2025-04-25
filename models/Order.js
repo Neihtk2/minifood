@@ -50,13 +50,9 @@ const orderSchema = new mongoose.Schema({
   },
   items: [orderItemSchema],
   voucher: {
-    code: String,
-    discount: Number,
-    voucherId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Voucher"
-    }
-  },// Lưu trực tiếp thông tin
+    type: String,
+    default: null
+  },
   total: {
     type: Number,
     required: true

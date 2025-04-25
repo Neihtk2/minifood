@@ -136,7 +136,6 @@ const getAvailableVouchers = asyncHandler(async (req, res) => {
     try {
         const userId = req.user._id;
         const { orderTotal } = req.query;
-
         const vouchers = await Voucher.find({
             isActive: true,
             startDate: { $lte: new Date() },
@@ -173,88 +172,93 @@ const getAvailableVouchers = asyncHandler(async (req, res) => {
     }
 });
 
-// Áp dụng voucher
-const applyVoucher = asyncHandler(async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
 
+const applyVoucher = asyncHandler(async (req, res) => {
     try {
-        const { voucherCode, orderTotal } = req.body;
+        const { voucherCode } = req.body;
         const userId = req.user._id;
 
-        // Tìm voucher
-        const voucher = await Voucher.findOne({ code: voucherCode.toUpperCase() }).session(session);
+        console.log("➡️ Bắt đầu apply voucher:", voucherCode);
+        console.log("🧑 User ID:", userId);
 
-        // Kiểm tra tồn tại
+        // 1. Tìm voucher
+        const voucher = await Voucher.findOne({
+            code: voucherCode?.toUpperCase(),
+            isActive: true
+        });
+
         if (!voucher) {
-            await session.abortTransaction();
-            return handleError(res, 404, "Mã giảm giá không tồn tại");
+            console.log("❌ Voucher không tồn tại hoặc không active");
+            return res.status(404).json({
+                success: false,
+                message: "Mã giảm giá không tồn tại"
+            });
         }
 
-        // Kiểm tra điều kiện
+        console.log("✅ Voucher tìm thấy:", voucher.code);
+
+        // 2. Kiểm tra thời gian
         const now = new Date();
+        console.log("🕒 Thời gian hiện tại:", now);
+        console.log("📅 Start:", voucher.startDate, " End:", voucher.endDate);
+
         if (now < voucher.startDate || now > voucher.endDate) {
-            await session.abortTransaction();
-            return handleError(res, 400, "Mã giảm giá không trong thời gian hiệu lực");
+            console.log("❌ Voucher hết hạn hoặc chưa bắt đầu");
+            return res.status(400).json({
+                success: false,
+                message: "Mã giảm giá hết hạn"
+            });
         }
 
-        if (orderTotal < voucher.minOrderValue) {
-            await session.abortTransaction();
-            return handleError(res, 400, `Đơn hàng tối thiểu ${voucher.minOrderValue} để áp dụng voucher`);
+        // 3. Kiểm tra lượt dùng của user
+        const userUsage = voucher.usersUsage.find(
+            u => u.userId.toString() === userId.toString()
+        );
+
+        console.log("🔁 User đã dùng voucher:", userUsage);
+
+        if (
+            userUsage &&
+            voucher.maxUsagePerUser &&
+            userUsage.count >= voucher.maxUsagePerUser
+        ) {
+            console.log("❌ User vượt quá số lần dùng");
+            return res.status(400).json({
+                success: false,
+                message: "Bạn đã sử dụng mã này quá số lần cho phép"
+            });
+
         }
 
-        // Kiểm tra lượt dùng
-        if (voucher.maxUses > 0 && voucher.usedCount >= voucher.maxUses) {
-            await session.abortTransaction();
-            return handleError(res, 400, "Mã giảm giá đã hết lượt sử dụng");
-        }
-
-        // Kiểm tra lượt dùng của user
-        const userUsage = voucher.usersUsage.find(u => u.userId.equals(userId));
-        if (voucher.maxUsagePerUser > 0 && (userUsage?.count || 0) >= voucher.maxUsagePerUser) {
-            await session.abortTransaction();
-            return handleError(res, 400, "Bạn đã sử dụng hết lượt cho mã này");
-        }
-
-        // Tính toán giảm giá
-        let discount = 0;
-
-        if (orderTotal >= voucher.minOrderValue) {
-            discount = voucher.maxDiscountAmount;
-        } else {
-            discount = 0;
-        }
-
-        // Cập nhật lượt dùng
-        voucher.usedCount += 1;
-
+        // 4. Cập nhật lượt dùng
         if (userUsage) {
             userUsage.count += 1;
+            console.log("🔄 Tăng lượt dùng user:", userUsage.count);
         } else {
             voucher.usersUsage.push({ userId, count: 1 });
+            console.log("➕ Thêm user mới vào danh sách sử dụng voucher");
         }
 
-        await voucher.save({ session });
-        await session.commitTransaction();
+        voucher.usedCount += 1;
+        console.log("📈 Tổng số lượt dùng voucher:", voucher.usedCount);
 
-        res.json({
+        await voucher.save();
+        console.log("✅ Lưu voucher thành công");
+
+        return res.status(200).json({
             success: true,
-            discount,
-            finalTotal: orderTotal - discount,
-            remainingUses: voucher.maxUses ? voucher.maxUses - voucher.usedCount : Infinity,
-            remainingUserUses: voucher.maxUsagePerUser - (userUsage?.count || 0)
+            message: "Áp dụng voucher thành công"
         });
 
     } catch (error) {
-        await session.abortTransaction();
-        res.status(500).json({
+        console.log("💥 Lỗi áp dụng voucher:", error);
+        return res.status(500).json({
             success: false,
             message: "Lỗi áp dụng voucher: " + error.message
         });
-    } finally {
-        session.endSession();
     }
 });
+
 
 module.exports = {
     createVoucher,
