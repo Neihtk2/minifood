@@ -48,7 +48,11 @@ const orderSchema = new mongoose.Schema({
     enum: ["cash", "cod"],
     required: true
   },
-  items: [orderItemSchema], // Lưu trực tiếp thông tin
+  items: [orderItemSchema],
+  voucher: {
+    type: String,
+    default: null
+  },
   total: {
     type: Number,
     required: true

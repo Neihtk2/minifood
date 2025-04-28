@@ -1,8 +1,12 @@
 // controllers/orderController.js
 const Order = require("../models/Order");
+const Voucher = require("../models/voucher");
 const Cart = require("../models/Cart");
 const asyncHandler = require("express-async-handler");
 const User = require("../models/User");
+
+
+
 
 const createOrder = asyncHandler(async (req, res) => {
   try {
@@ -10,7 +14,9 @@ const createOrder = asyncHandler(async (req, res) => {
       customerName,
       phone,
       deliveryAddress,
-      paymentMethod
+      paymentMethod,
+      orderTotal,
+      voucherCode
     } = req.body;
 
     // Validate input
@@ -23,6 +29,7 @@ const createOrder = asyncHandler(async (req, res) => {
 
     // Kiểm tra phương thức thanh toán
     if (!["cash", "cod"].includes(paymentMethod)) {
+
       return res.status(400).json({
         success: false,
         message: "Phương thức thanh toán không hợp lệ"
@@ -32,11 +39,13 @@ const createOrder = asyncHandler(async (req, res) => {
     // Lấy giỏ hàng
     const cart = await Cart.findOne({ userId: req.user._id });
     if (!cart || cart.items.length === 0) {
+
       return res.status(400).json({
         success: false,
         message: "Giỏ hàng trống"
       });
     }
+
 
     // Tạo items từ giỏ hàng
     const orderItems = cart.items.map(item => ({
@@ -47,25 +56,27 @@ const createOrder = asyncHandler(async (req, res) => {
       category: item.category
     }));
 
-    // Tính tổng tiền
-    const total = cart.items.reduce(
-      (sum, item) => sum + (item.price * item.quantity),
-      0
-    );
 
     // Tạo đơn hàng
-    const order = await Order.create({
+    const [order] = await Order.create([{
       userId: req.user._id,
       customerName,
       phone,
       deliveryAddress,
       paymentMethod,
       items: orderItems,
-      total
-    });
+      // total: Number((orderTotal - discount).toFixed(2)),
+      total: Number(orderTotal),
+      voucher: voucherCode ? voucherCode.toUpperCase() : null,
+      // voucher: voucherData
+    }],);
 
     // Xóa giỏ hàng
-    await Cart.deleteOne({ _id: cart._id });
+
+    cart.items = [];
+    await cart.save();
+
+
 
     res.status(201).json({
       success: true,
@@ -73,6 +84,7 @@ const createOrder = asyncHandler(async (req, res) => {
     });
 
   } catch (error) {
+
     res.status(500).json({
       success: false,
       message: "Lỗi server: " + error.message
@@ -92,7 +104,7 @@ const getOrders = asyncHandler(async (req, res) => {
         break;
 
       case 'staff':
-        query.status = { $in: ['pending', 'processing', 'delivering'] };
+        query.status = { $in: ['pending', 'processing', 'delivering', 'completed'] };
         break;
 
       case 'admin':
