@@ -8,7 +8,8 @@ const {
   createDish,
   updateDish,
   deleteDish,
-  getNewDishes
+  getNewDishes,
+  addRating
 } = require('../controllers/dishController');
 const { protect, checkRole } = require('../utils/authMiddleware');
 const upload = require('../utils/upload'); // Import middleware upload
@@ -27,6 +28,7 @@ router.post(
   upload.single('image'), // Thêm middleware upload cho trường 'image'
   createDish
 );
+router.post('/ratings', protect, addRating);
 
 router.put(
   '/:id',

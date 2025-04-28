@@ -17,19 +17,19 @@ router.route('/')
 // Thêm vào giỏ hàng - Xem giỏ hàng - Chỉ user
 router.route('/cart').post(
   protect,
-  checkRole('user'),
+  checkRole('user', 'staff'),
   addToCart
 ).get(
   protect,
-  checkRole('user'),
+  checkRole('user', 'staff'),
   getCart
 ).delete(
   protect,
-  checkRole('user'),
+  checkRole('user', 'staff'),
   removeCartItem
 ).patch(
   protect,
-  checkRole('user'),
+  checkRole('user', 'staff'),
   updateCartItemQuantity
 );
 router.post('/change-password', protect, changePassword);

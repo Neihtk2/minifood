@@ -104,7 +104,7 @@ const getOrders = asyncHandler(async (req, res) => {
         break;
 
       case 'staff':
-        query.status = { $in: ['pending', 'processing', 'delivering', 'completed'] };
+        // query.status = { $in: ['pending', 'processing', 'delivering', 'completed'] };
         break;
 
       case 'admin':
@@ -356,6 +356,8 @@ const getTopSoldDishes = asyncHandler(async (req, res) => {
               $project: {
                 _id: 1,
                 category: 1,
+                averageRating: 1,  // Thêm averageRating
+                ratingCount: 1,
                 // image: 1, // Nếu muốn ưu tiên ảnh từ Dish
               },
             },
@@ -369,13 +371,16 @@ const getTopSoldDishes = asyncHandler(async (req, res) => {
       { $unwind: { path: "$dishInfo", preserveNullAndEmptyArrays: true } },
       {
         $project: {
-          _id: 0,
-          // dishId: { $ifNull: ["$dishInfo._id", "N/A"] }, // Xử lý trường hợp không tìm thấy
+          // _id: 0,
+          _id: { $ifNull: ["$dishInfo._id", "N/A"] }, // Xử lý trường hợp không tìm thấy
+
           name: "$_id.name",
           price: "$_id.price",
           image: { $ifNull: ["$image", "$dishInfo.image"] }, // Ưu tiên ảnh từ Order
           // category: { $ifNull: ["$dishInfo.category", "Không xác định"] },
           category: { $ifNull: ["$dishInfo.category", "Không xác định"] },
+          averageRating: { $ifNull: ["$dishInfo.averageRating", 0] },  // Thêm averageRating, mặc định 0 nếu không có
+          ratingCount: { $ifNull: ["$dishInfo.ratingCount", 0] },      // Thêm ratingCount, mặc định 0 nếu không có
           totalSold: 1,
           totalRevenue: 1,
         },
@@ -400,4 +405,119 @@ const getTopSoldDishes = asyncHandler(async (req, res) => {
     });
   }
 });
-module.exports = { createOrder, getOrders, cancelOrder, updateOrderStatus, unlockUser, getTopSoldDishes };
+const acceptOrderForDelivery = asyncHandler(async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { _id: staffId, name: staffName } = req.user;
+
+    // Kiểm tra quyền (chỉ nhân viên/staff mới được nhận đơn)
+    if (req.user.role !== 'staff') {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ nhân viên được phép nhận đơn"
+      });
+    }
+
+    // Tìm đơn hàng
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng"
+      });
+    }
+
+    // Kiểm tra trạng thái đơn hàng
+    if (order.status !== 'delivering') {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể nhận đơn hàng ở trạng thái 'đang xử lý'"
+      });
+    }
+
+    // Kiểm tra nếu đơn đã có shipper khác
+    if (order.shipper) {
+      return res.status(400).json({
+        success: false,
+        message: "Đơn hàng đã được nhân viên khác nhận"
+      });
+    }
+
+    // Cập nhật đơn hàng
+
+    order.shipper = staffName; // hoặc có thể lưu staffId nếu cần
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Nhận đơn hàng thành công",
+      data: order
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server: " + error.message
+    });
+  }
+});
+const getPendingDeliveryOrders = asyncHandler(async (req, res) => {
+  try {
+    // Chỉ nhân viên được phép
+    if (req.user.role !== 'staff') {
+      return res.status(403).json({
+        success: false,
+        message: "Truy cập bị từ chối"
+      });
+    }
+
+    const orders = await Order.find({
+      status: 'delivering',
+      shipper: { $exists: false }
+    }).sort({ createdAt: 1 });
+
+    res.status(200).json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server: " + error.message
+    });
+  }
+});
+const getAcceptedDeliveryOrders = asyncHandler(async (req, res) => {
+  try {
+    // Chỉ nhân viên mới được phép
+    if (req.user.role !== 'staff') {
+      return res.status(403).json({
+        success: false,
+        message: "Truy cập bị từ chối"
+      });
+    }
+
+    const staffName = req.user.name; // hoặc req.user._id nếu anh lưu id shipper thay vì tên
+
+    const orders = await Order.find({
+      status: 'delivering',
+      shipper: staffName,  // hoặc { $exists: true } nếu muốn tất cả đơn đã nhận, hoặc lọc theo staffName nếu mỗi nhân viên chỉ xem đơn mình nhận
+    }).sort({ createdAt: -1 }); // Mới nhận trước
+
+    res.status(200).json({
+      success: true,
+      count: orders.length,
+      data: orders,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server: " + error.message,
+    });
+  }
+});
+
+module.exports = { createOrder, getOrders, cancelOrder, updateOrderStatus, unlockUser, getTopSoldDishes, acceptOrderForDelivery, getPendingDeliveryOrders, getAcceptedDeliveryOrders };
