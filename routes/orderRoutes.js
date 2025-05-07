@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, checkRole } = require('../utils/authMiddleware');
-const { createOrder, getOrders, cancelOrder, updateOrderStatus, unlockUser, getTopSoldDishes, acceptOrderForDelivery, getPendingDeliveryOrders, getAcceptedDeliveryOrders } = require('../controllers/orderController');
+const { createOrder, getOrders, cancelOrder, updateOrderStatus, unlockUser, getTopSoldDishes, acceptOrderForDelivery, getPendingDeliveryOrders, getAcceptedDeliveryOrders, createPayment } = require('../controllers/orderController');
 // const {checkAccountLocked }= require('../utils/checkAccountLocked');  
 // Tạo đơn hàng - Chỉ user
 router.route('/').post(
@@ -48,4 +48,5 @@ router.get(
 router.get('/top-dishes',
   //  protect, 
   getTopSoldDishes);
+router.get('/payment', protect, createPayment)
 module.exports = router;
