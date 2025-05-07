@@ -15,7 +15,7 @@ connectDB();
 
 app.use(cors({
     origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 // Middleware
@@ -31,7 +31,7 @@ app.use('/api/admin', orderRoutes)
 app.use('/api/vouchers', voucherRoutes)
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port http://localhost:${PORT}`);
     cleanupExpiredVouchers()
 });

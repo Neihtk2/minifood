@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { protect, checkRole } = require('../utils/authMiddleware');
-const orderController = require('../controllers/orderController');
+const { getOrders } = require('../controllers/orderController');
 
 
 router.route('/allOrders').get(
-  protect, 
+  protect,
   checkRole('admin', 'staff'),
-  orderController.getAllOrders 
+  getOrders
 )
 module.exports = router;

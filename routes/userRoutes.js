@@ -1,14 +1,14 @@
 // routes/userRoutes.js
 const express = require('express');
-const { 
-  getUserProfile, 
+const {
+  getUserProfile,
   updateUserProfile,
-  getUsers
+  getUsers, changePassword
 } = require('../controllers/userController');
-const orderController = require('../controllers/orderController');
-const cartController = require('../controllers/cartController');
+// const orderController = require('../controllers/orderController');
+// const cartController = require('../controllers/cartController');
 const { protect, checkRole } = require('../utils/authMiddleware');
-const{addToCart, getCart, removeCartItem} = require('../controllers/cartController');
+const { addToCart, getCart, removeCartItem, updateCartItemQuantity } = require('../controllers/cartController');
 
 const router = express.Router();
 
@@ -16,19 +16,23 @@ router.route('/')
   .get(protect, checkRole('admin'), getUsers);
 // Thêm vào giỏ hàng - Xem giỏ hàng - Chỉ user
 router.route('/cart').post(
-  protect, 
-  checkRole('user'), 
+  protect,
+  checkRole('user', 'staff'),
   addToCart
-).get( 
-  protect, 
-  checkRole('user'), 
+).get(
+  protect,
+  checkRole('user', 'staff'),
   getCart
 ).delete(
   protect,
-  checkRole('user'),
+  checkRole('user', 'staff'),
   removeCartItem
+).patch(
+  protect,
+  checkRole('user', 'staff'),
+  updateCartItemQuantity
 );
-
+router.post('/change-password', protect, changePassword);
 router.route('/profile')
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);

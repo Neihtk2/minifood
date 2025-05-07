@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 
 const orderItemSchema = new mongoose.Schema({
+
   name: {
     type: String,
     // required: true
@@ -22,7 +23,7 @@ const orderItemSchema = new mongoose.Schema({
   category: {
     type:
       String
-  }
+  },
 });
 
 const orderSchema = new mongoose.Schema({
@@ -48,7 +49,11 @@ const orderSchema = new mongoose.Schema({
     enum: ["cash", "cod"],
     required: true
   },
-  items: [orderItemSchema], // Lưu trực tiếp thông tin
+  items: [orderItemSchema],
+  voucher: {
+    type: String,
+    default: null
+  },
   total: {
     type: Number,
     required: true
@@ -57,6 +62,10 @@ const orderSchema = new mongoose.Schema({
     type: String,
     enum: ["pending", "processing", "delivering", "completed", "cancelled", "rejected"],
     default: "pending"
+  },
+  shipper: {
+    type: String,
+    default: null
   },
   createdAt: { type: Date, default: Date.now }
 }

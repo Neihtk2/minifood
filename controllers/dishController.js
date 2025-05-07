@@ -26,7 +26,7 @@ const handleError = (res, statusCode, message) => {
 
 const getDishes = asyncHandler(async (req, res) => {
   try {
-    const dishes = await Dish.find({});
+    const dishes = await Dish.find().sort({ name: 1 });
     res.json({
       success: true,
       data: dishes
@@ -51,9 +51,10 @@ const getDishById = asyncHandler(async (req, res) => {
 });
 
 const createDish = asyncHandler(async (req, res) => {
-  const { name, price, category } = req.body;
-  const imageFile = req.file;
 
+  const { name, price, category, description } = req.body;
+  const imageFile = req.file;
+  console.log("dữ liệu", req.body);
   // Validation
   if (!name || !price || !category) {
     return handleError(res, 400, "Vui lòng điền đầy đủ thông tin");
@@ -65,6 +66,10 @@ const createDish = asyncHandler(async (req, res) => {
 
   if (!imageFile) {
     return handleError(res, 400, "Vui lòng chọn ảnh");
+  }
+  const priceNumber = Number(price);
+  if (isNaN(priceNumber)) {
+    return handleError(res, 400, "Giá tiền phải là số hợp lệ");
   }
 
   try {
@@ -82,8 +87,9 @@ const createDish = asyncHandler(async (req, res) => {
     // Tạo món ăn
     const dish = await Dish.create({
       name,
-      price: Number(price),
+      price: priceNumber,
       category,
+      description: description || '',
       image: `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`,
     });
 
@@ -92,6 +98,13 @@ const createDish = asyncHandler(async (req, res) => {
       data: dish
     });
   } catch (error) {
+    console.error('Lỗi khi tạo món:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: `Tên món '${name}' đã tồn tại`
+      });
+    }
     handleError(res, 500, `Lỗi tạo món: ${error.message}`);
   }
 });
@@ -163,6 +176,7 @@ const updateDish = asyncHandler(async (req, res) => {
       name: req.body.name || dish.name,
       price: req.body.price ? Number(req.body.price) : dish.price,
       category: req.body.category || dish.category,
+      description: req.body.description || dish.description,
       image: imageUrl
     };
 
@@ -185,6 +199,166 @@ const updateDish = asyncHandler(async (req, res) => {
     handleError(res, 500, `Lỗi cập nhật: ${error.message}`);
   }
 });
+const getNewDishes = asyncHandler(async (req, res) => {
+  try {
+    const newDishes = await Dish.find()
+      .sort({ createdAt: -1 }) // Sắp xếp từ mới nhất đến cũ nhất
+      .limit(5) // Giới hạn 5 kết quả
+      .lean(); // Trả về plain JavaScript objects
+
+    if (!newDishes.length) {
+      return res.status(200).json({
+        success: true,
+        message: "Chưa có món ăn nào được thêm",
+        data: []
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: newDishes.length,
+      data: newDishes
+    });
+
+  } catch (error) {
+    handleError(res, 500, `Lỗi khi lấy món ăn mới: ${error.message}`);
+  }
+});
+// const addRating = asyncHandler(async (req, res) => {
+//   const { id: dishId } = req.params;
+//   const { star, comment } = req.body;
+//   const userId = req.user._id;
+
+//   // Validate input
+//   if (!star || isNaN(star)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Vui lòng cung cấp số sao hợp lệ"
+//     });
+//   }
+
+//   if (star < 1 || star > 5) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Số sao phải từ 1 đến 5"
+//     });
+//   }
+
+//   try {
+//     // Kiểm tra món ăn tồn tại
+//     const dish = await Dish.findById(dishId);
+//     if (!dish) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Không tìm thấy món ăn"
+//       });
+//     }
+
+//     // Kiểm tra user đã đánh giá chưa
+//     const existingRatingIndex = dish.ratings.findIndex(
+//       rating => rating.userId.toString() === userId.toString()
+//     );
+
+//     const newRating = {
+//       userId,
+//       star,
+//       comment: comment || '',
+//       createdAt: new Date()
+//     };
+
+//     if (existingRatingIndex >= 0) {
+//       // Nếu đã đánh giá thì cập nhật
+//       dish.ratings[existingRatingIndex] = newRating;
+//     } else {
+//       // Nếu chưa thì thêm mới
+//       dish.ratings.push(newRating);
+//     }
+
+//     // Lưu và trigger middleware tính toán lại averageRating
+//     await dish.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: existingRatingIndex >= 0
+//         ? "Cập nhật đánh giá thành công"
+//         : "Thêm đánh giá thành công",
+//       data: {
+//         dishId: dish._id,
+//         rating: newRating,
+//         averageRating: dish.averageRating,
+//         ratingCount: dish.ratingCount
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Lỗi khi đánh giá:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Lỗi server khi xử lý đánh giá",
+//       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+//     });
+//   }
+// });
+// controllers/ratingController.js
+const addRating = asyncHandler(async (req, res) => {
+  const { dishName, star, comment } = req.body;
+  const userId = req.user._id;
+
+  // Validate
+  if (!dishName || typeof dishName !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: "Tên món không hợp lệ"
+    });
+  }
+
+  // Tìm món ăn bằng tên (chính xác hoặc không phân biệt hoa thường)
+  const dish = await Dish.findOne({
+    name: { $regex: new RegExp(`^${dishName}$`, 'i') } // Không phân biệt hoa thường
+  });
+
+  if (!dish) {
+    return res.status(404).json({
+      success: false,
+      message: `Không tìm thấy món '${dishName}'`
+    });
+  }
+
+  // Kiểm tra user đã đánh giá chưa
+  const existingRating = dish.ratings.find(r =>
+    r.userId.toString() === userId.toString()
+  );
+
+  const newRating = {
+    userId,
+    star,
+    comment: comment || '',
+    createdAt: new Date()
+  };
+
+  if (existingRating) {
+    Object.assign(existingRating, newRating); // Cập nhật
+  } else {
+    dish.ratings.push(newRating); // Thêm mới
+  }
+
+  // Tính toán lại điểm trung bình
+  const totalStars = dish.ratings.reduce((sum, r) => sum + r.star, 0);
+  dish.averageRating = totalStars / dish.ratings.length;
+  dish.ratingCount = dish.ratings.length;
+
+  await dish.save();
+
+  res.json({
+    success: true,
+    data: {
+      dishId: dish._id,
+      dishName: dish.name,
+      rating: newRating,
+      averageRating: dish.averageRating
+    }
+  });
+});
 
 
 module.exports = {
@@ -193,4 +367,6 @@ module.exports = {
   createDish,
   deleteDish,
   updateDish,
+  getNewDishes,
+  addRating
 };
