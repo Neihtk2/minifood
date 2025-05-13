@@ -8,6 +8,7 @@ const {
 // const orderController = require('../controllers/orderController');
 // const cartController = require('../controllers/cartController');
 const { protect, checkRole } = require('../utils/authMiddleware');
+const upload = require('../utils/upload');
 const { addToCart, getCart, removeCartItem, updateCartItemQuantity } = require('../controllers/cartController');
 
 const router = express.Router();
@@ -35,6 +36,6 @@ router.route('/cart').post(
 router.post('/change-password', protect, changePassword);
 router.route('/profile')
   .get(protect, getUserProfile)
-  .put(protect, updateUserProfile);
+  .put(protect, upload.single('image'), updateUserProfile);
 
 module.exports = router;

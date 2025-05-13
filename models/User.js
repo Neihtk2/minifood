@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   name: { type: String },
-  role: { type: String, enum: ['user', 'staff', 'admin'], default: 'user' },
+  role: { type: String, enum: ['user', 'staff', 'shipper', 'admin'], default: 'user' },
   phone: String,
   address: String,
   rejectCount: {
@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema({
   isLocked: {
     type: Boolean,
     default: false
+  },
+  image: {
+    type: String,
+    default: ''
   },
   createdAt: { type: Date, default: Date.now }
 });

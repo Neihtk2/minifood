@@ -1,12 +1,31 @@
-// controllers/userController.js
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const { v4: uuidv4 } = require("uuid");
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const validator = require('validator');
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
 
-// @desc    Get user profile
-// @route   GET /api/users/profile
-// @access  Private
+const generateFileName = (originalName) => {
+  const ext = originalName.split(".").pop();
+  return `dishes/${uuidv4()}.${ext}`;
+};
+
+
+const handleError = (res, statusCode, message) => {
+  res.status(statusCode).json({
+    success: false,
+    message: message
+  });
+};
+
+
 const getUserProfile = asyncHandler(async (req, res) => {
   try {
     const user = await User.findOne({
@@ -43,13 +62,42 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   try {
     const user = await User.findOne({
       _id: req.user._id
-    }).select('-password')
-      .lean();;
+    }).select('-password').lean();
+
     if (!user) {
       return res.status(404).json({ message: 'Không tìm thấy người dùng' });
     }
 
-    // Lấy dữ liệu từ request (chỉ lấy các trường có truyền lên)
+    let imageUrl = user.image; // Sửa từ dish.image thành user.image
+    const imageFile = req.file;
+
+    // Xử lý ảnh mới
+    if (imageFile) {
+      // Xóa ảnh cũ nếu tồn tại
+      if (user.image) {
+        const oldImageKey = user.image.split('/').slice(3).join('/');
+        await s3Client.send(
+          new DeleteObjectCommand({
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: oldImageKey,
+          })
+        );
+      }
+
+      // Upload ảnh mới
+      const fileName = generateFileName(imageFile.originalname);
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: fileName,
+          Body: imageFile.buffer,
+          ContentType: imageFile.mimetype,
+        })
+      );
+      imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+    }
+
+    // Lấy dữ liệu từ request
     const updates = {};
     if (req.body.email) {
       const email = req.body.email.toLowerCase();
@@ -57,16 +105,15 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'Email không hợp lệ' });
       }
 
-      // Kiểm tra email đã tồn tại chưa (không cập nhật nếu email đã thuộc người khác)
       const emailExists = await User.findOne({ email });
       if (emailExists && emailExists._id.toString() !== user._id.toString()) {
         return res.status(400).json({ message: 'Email này đã được sử dụng' });
       }
       updates.email = email;
     }
-    if (req.body.name) {
-      updates.name = req.body.name;
-    }
+
+    if (req.body.name) updates.name = req.body.name;
+
     if (req.body.phone) {
       if (!validator.isMobilePhone(req.body.phone, 'vi-VN')) {
         return res.status(400).json({ message: 'Số điện thoại không hợp lệ' });
@@ -74,32 +121,28 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       updates.phone = req.body.phone;
     }
 
-    if (req.body.address) {
-      updates.address = req.body.address;
-    }
+    if (req.body.address) updates.address = req.body.address;
+    if (imageFile) updates.image = imageUrl;
 
-    // Kiểm tra nếu không có trường nào được gửi lên để cập nhật
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ message: 'Không có thông tin nào để cập nhật' });
     }
 
-    // Cập nhật thông tin người dùng
-    const updatedUser = await User.findByIdAndUpdate(req.user._id, updates, { new: true });
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select('-password');
 
     res.json({
       message: 'Cập nhật thông tin thành công',
-      _id: updatedUser._id,
-      email: updatedUser.email,
-      name: updatedUser.name,
-      role: updatedUser.role,
-      phone: updatedUser.phone,
-      address: updatedUser.address
+      user: updatedUser
     });
   } catch (err) {
+    console.error('Lỗi khi cập nhật profile:', err);
     res.status(500).json({ message: 'Lỗi máy chủ, vui lòng thử lại sau' });
   }
 });
-
 
 // @desc    Get all users (Admin only)
 // @route   GET /api/users
@@ -110,6 +153,7 @@ const getUsers = asyncHandler(async (req, res) => {
     .lean();
   res.json(users);
 });
+
 const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
