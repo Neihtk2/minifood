@@ -322,27 +322,6 @@ const getTopSoldDishes = asyncHandler(async (req, res) => {
           image: { $first: "$items.image" }, // Giữ lại ảnh từ Order
         },
       },
-
-      // Bước 4: Join với collection Dish dựa trên name và price
-      // {
-      //   $lookup: {
-      //     from: "dishes",
-      //     let: { itemName: "$_id.name", itemPrice: "$_id.price" },
-      //     pipeline: [
-      //       {
-      //         $match: {
-      //           $expr: {
-      //             $and: [
-      //               { $eq: ["$name", "$$itemName"] },
-      //               { $eq: ["$price", "$$itemPrice"] },
-      //             ],
-      //           },
-      //         },
-      //       },
-      //     ],
-      //     as: "dishInfo",
-      //   },
-      // },
       {
         $lookup: {
           from: "dishes",
@@ -417,7 +396,7 @@ const acceptOrderForDelivery = asyncHandler(async (req, res) => {
     const { _id: staffId, name: staffName } = req.user;
 
     // Kiểm tra quyền (chỉ nhân viên/staff mới được nhận đơn)
-    if (req.user.role !== 'staff') {
+    if (req.user.role !== 'shipper') {
       return res.status(403).json({
         success: false,
         message: "Chỉ nhân viên được phép nhận đơn"
@@ -470,7 +449,7 @@ const acceptOrderForDelivery = asyncHandler(async (req, res) => {
 const getPendingDeliveryOrders = asyncHandler(async (req, res) => {
   try {
     // Chỉ nhân viên được phép
-    if (req.user.role !== 'staff') {
+    if (req.user.role !== 'shipper') {
       return res.status(403).json({
         success: false,
         message: "Truy cập bị từ chối"
@@ -478,8 +457,11 @@ const getPendingDeliveryOrders = asyncHandler(async (req, res) => {
     }
 
     const orders = await Order.find({
-      status: 'delivering',
-      shipper: { $exists: false }
+      status: { $regex: /^delivering$/i }, // Khớp không phân biệt chữ hoa/chữ thường
+      $or: [
+        { shipper: { $exists: false } },
+        { shipper: null }
+      ]
     }).sort({ createdAt: 1 });
 
     res.status(200).json({
@@ -498,7 +480,7 @@ const getPendingDeliveryOrders = asyncHandler(async (req, res) => {
 const getAcceptedDeliveryOrders = asyncHandler(async (req, res) => {
   try {
     // Chỉ nhân viên mới được phép
-    if (req.user.role !== 'staff') {
+    if (req.user.role !== 'shipper') {
       return res.status(403).json({
         success: false,
         message: "Truy cập bị từ chối"
