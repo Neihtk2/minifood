@@ -82,8 +82,6 @@ const createOrder = asyncHandler(async (req, res) => {
     cart.items = [];
     await cart.save();
 
-
-
     res.status(201).json({
       success: true,
       data: order

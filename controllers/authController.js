@@ -1,7 +1,8 @@
 // controllers/authController.js
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const { createRoomLogic, addStaffToRoom } = require("./roomController");
 
 // Đăng ký
 const signup = async (req, res) => {
@@ -9,18 +10,38 @@ const signup = async (req, res) => {
 
   try {
     if (!email || !password || !name) {
-      return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin' });
+      return res
+        .status(400)
+        .json({ message: "Vui lòng nhập đầy đủ thông tin" });
     }
     const normalizedEmail = email.toLowerCase();
     const userExists = await User.findOne({ email: normalizedEmail });
-    if (userExists) return res.status(400).json({ message: 'Email này đã được sử dụng' });
+    if (userExists)
+      return res.status(400).json({ message: "Email này đã được sử dụng" });
 
     const hashedPassword = await bcrypt.hash(password, 12);
-    const user = await User.create({ email, password: hashedPassword, name, role });
+    const user = await User.create({
+      email,
+      password: hashedPassword,
+      name,
+      role,
+    });
 
-    res.status(201).json({ message: 'Đăng ký thành công', _id: user._id, email: user.email, role: user.role });
+    if (role === "user") {
+      await createRoomLogic(user._id);
+    }
+    if (role === "staff") {
+      await addStaffToRoom(user._id);
+    }
+
+    res.status(201).json({
+      message: "Đăng ký thành công",
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi máy chủ, vui lòng thử lại sau' });
+    res.status(500).json({ message: "Lỗi máy chủ, vui lòng thử lại sau" });
   }
 };
 
@@ -30,19 +51,30 @@ const login = async (req, res) => {
 
   try {
     if (!email || !password) {
-      return res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu' });
+      return res
+        .status(400)
+        .json({ message: "Vui lòng nhập email và mật khẩu" });
     }
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
+    if (!user)
+      return res
+        .status(400)
+        .json({ message: "Email hoặc mật khẩu không đúng" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Email hoặc mật khẩu không đúng' });
+    if (!isMatch)
+      return res
+        .status(400)
+        .json({ message: "Email hoặc mật khẩu không đúng" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
     res.json({
-      message: 'done',
+      message: "done",
       token,
-      role: user.role
+      userId: user._id,
+      role: user.role,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
