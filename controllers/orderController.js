@@ -204,7 +204,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   const { role } = req.user;
 
   // Chỉ admin/staff được cập nhật
-  if (!["admin", "staff"].includes(role)) {
+  if (!["admin", "staff", "shipper"].includes(role)) {
     return res.status(403).json({
       success: false,
       message: "Truy cập bị từ chối"
@@ -393,7 +393,7 @@ const getTopSoldDishes = asyncHandler(async (req, res) => {
 const acceptOrderForDelivery = asyncHandler(async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { _id: staffId, name: staffName } = req.user;
+    const { phone: staffPhone, name: staffName } = req.user;
 
     // Kiểm tra quyền (chỉ nhân viên/staff mới được nhận đơn)
     if (req.user.role !== 'shipper') {
@@ -430,7 +430,8 @@ const acceptOrderForDelivery = asyncHandler(async (req, res) => {
 
     // Cập nhật đơn hàng
 
-    order.shipper = staffName; // hoặc có thể lưu staffId nếu cần
+    order.shipper = staffName;
+    order.phoneShipper = staffPhone // hoặc có thể lưu staffId nếu cần
     await order.save();
 
     res.status(200).json({
