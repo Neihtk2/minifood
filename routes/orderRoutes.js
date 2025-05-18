@@ -21,7 +21,7 @@ router.route('/cancel/:id').patch(
 router.patch(
   '/status/:id',
   protect,
-  checkRole('admin', 'staff'),
+  checkRole('admin', 'staff', 'shipper'),
   updateOrderStatus
 );
 router.patch(
