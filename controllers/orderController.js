@@ -7,6 +7,8 @@ const Voucher = require("../models/voucher");
 const Cart = require("../models/Cart");
 const asyncHandler = require("express-async-handler");
 const User = require("../models/User");
+const admin = require('../config/firebase-admin'); // thay đúng đường dẫn tới file firebase.js
+
 // import moment from 'moment'
 // import querystring from 'qs'
 // import crypto, { verify } from 'crypto'
@@ -81,6 +83,28 @@ const createOrder = asyncHandler(async (req, res) => {
 
     cart.items = [];
     await cart.save();
+    const recipients = await User.find({
+      role: { $in: ["admin", "staff"] },
+      fcmToken: { $exists: true, $ne: null }
+    });
+    if (recipients.length > 0) {
+      const tokens = recipients.map(user => user.fcmToken);
+
+      const message = {
+        notification: {
+          title: "Đơn hàng mới",
+          body: `Đơn hàng #${order._id} vừa được tạo. Vui lòng kiểm tra!`
+        },
+        tokens: tokens, // gửi nhiều token
+        data: {
+          orderId: order._id.toString(),
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        }
+      };
+
+      const response = await admin.messaging().sendEachForMulticast({ tokens, ...message });
+      console.log(`🟢 Gửi FCM thành công: ${response.successCount}, thất bại: ${response.failureCount}`);
+    }
 
 
 
@@ -222,6 +246,31 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   // Cập nhật trạng thái
   order.status = status;
   await order.save();
+  try {
+    const user = await User.findById(order.userId);
+
+    if (user && user.fcmToken) {
+      const message = {
+        notification: {
+          title: 'Cập nhật đơn hàng',
+          body: `Đơn hàng #${order._id} đã chuyển sang trạng thái ${translateStatus(status)}`
+        },
+        token: user.fcmToken,
+        data: { // Dữ liệu tùy chỉnh
+          orderId: order._id.toString(),
+          newStatus: status,
+          click_action: 'FLUTTER_NOTIFICATION_CLICK'
+        }
+      };
+      console.log('🟡 Gửi FCM tới token:', user.fcmToken);
+
+      await admin.messaging().send(message);
+      console.log('🟢 Đã gửi FCM thành công ròi');
+    }
+  } catch (error) {
+    console.error('Lỗi gửi FCM:', error);
+    // Không trả về lỗi cho client vì đây chỉ là thông báo phụ
+  }
 
   // Xử lý nếu trạng thái là rejected
   if (status === "rejected") {
@@ -583,6 +632,17 @@ function sortObject(obj) {
     sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
   }
   return sorted;
+}
+function translateStatus(status) {
+  const statusMap = {
+    'pending': 'chờ xử lý',
+    'processing': 'chờ làm món',
+    'delivering': 'giao hàng',
+    'completed': 'đã hoàn thành',
+    'cancelled': 'đã hủy',
+    'rejected': 'đã từ chối'
+  };
+  return statusMap[status] || status;
 }
 
 

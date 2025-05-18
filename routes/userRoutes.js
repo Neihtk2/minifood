@@ -3,7 +3,7 @@ const express = require('express');
 const {
   getUserProfile,
   updateUserProfile,
-  getUsers, changePassword
+  getUsers, changePassword, saveFcmToken
 } = require('../controllers/userController');
 // const orderController = require('../controllers/orderController');
 // const cartController = require('../controllers/cartController');
@@ -37,5 +37,7 @@ router.post('/change-password', protect, changePassword);
 router.route('/profile')
   .get(protect, getUserProfile)
   .put(protect, upload.single('image'), updateUserProfile);
+// routes/userRoutes.js
+router.post('/save-fcm-token', protect, saveFcmToken);
 
 module.exports = router;
