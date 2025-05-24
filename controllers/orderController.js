@@ -227,7 +227,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   const { role } = req.user;
 
-  // Chỉ admin/staff được cập nhật
+
   if (!["admin", "staff", "shipper"].includes(role)) {
     return res.status(403).json({
       success: false,
@@ -266,6 +266,32 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
       await admin.messaging().send(message);
       console.log('🟢 Đã gửi FCM thành công ròi');
+    }
+    if (status === "delivering") {
+      const shippers = await User.find({
+        role: "shipper",
+        fcmToken: { $exists: true, $ne: null }
+      });
+
+      if (shippers.length > 0) {
+        const tokens = shippers.map(shipper => shipper.fcmToken);
+
+        const shipperMessage = {
+          notification: {
+            title: "Đơn hàng mới cần giao",
+            body: `Đơn hàng #${order._id} đã sẵn sàng để giao. Vui lòng nhận đơn!`
+          },
+          tokens: tokens,
+          data: {
+            orderId: order._id.toString(),
+            click_action: "FLUTTER_NOTIFICATION_CLICK",
+            type: "new_delivery_order"
+          }
+        };
+        console.log('🟡 Gửi FCM tới token shipper:', user.fcmToken);
+        await admin.messaging().sendEachForMulticast(shipperMessage);
+        console.log('🟡 Gửi FCM tới token shipper:', user.fcmToken);
+      }
     }
   } catch (error) {
     console.error('Lỗi gửi FCM:', error);
