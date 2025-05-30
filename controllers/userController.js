@@ -29,14 +29,14 @@ const handleError = (res, statusCode, message) => {
 const getUserProfile = asyncHandler(async (req, res) => {
   try {
     const user = await User.findOne({
-      _id: req.user._id // Sửa thành object query
+      _id: req.user._id
     })
       .select('-password')
       .lean();
 
     if (!user) {
       return res.status(404).json({
-        success: false, // Thêm trạng thái success
+        success: false,
         message: 'Không tìm thấy người dùng'
       });
     }
