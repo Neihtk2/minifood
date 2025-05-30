@@ -188,9 +188,34 @@ const changePassword = asyncHandler(async (req, res) => {
 
   res.json({ message: 'Đổi mật khẩu thành công' });
 });
+// controllers/userController.js
+const saveFcmToken = asyncHandler(async (req, res) => {
+  const { fcm_token } = req.body;
+
+  if (!fcm_token) {
+    return res.status(400).json({
+      success: false,
+      message: "Token là bắt buộc"
+    });
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { fcmToken: fcm_token },
+    { new: true }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "FCM token đã được lưu thành công",
+    data: user
+  });
+});
+
 module.exports = {
   getUserProfile,
   updateUserProfile,
   getUsers,
-  changePassword
+  changePassword,
+  saveFcmToken
 };
