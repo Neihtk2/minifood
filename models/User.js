@@ -25,6 +25,9 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  isOnline: { type: Boolean, default: false },
+  status: { type: String, enum: ['free', 'working'], default: 'free' },
+  lastSeen: Date,
   fcmToken: String,
   createdAt: { type: Date, default: Date.now }
 });
