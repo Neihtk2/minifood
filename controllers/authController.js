@@ -42,6 +42,7 @@ const login = async (req, res) => {
     res.json({
       message: 'done',
       token,
+      userId: user._id,
       role: user.role
     });
   } catch (err) {
