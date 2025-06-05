@@ -12,7 +12,9 @@ const dishRoutes = require('./routes/dishRoutes');
 const orderRoutes = require('./routes/orderRoutes.js');
 const voucherRoutes = require('./routes/vouRoutes.js');
 const messageRoutes = require('./routes/messageRoutes');
+const restaurantRoutes = require('./routes/restaurantRoutes');
 const roomRoutes = require('./routes/roomRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const socketHandler = require('./config/socket');
 
@@ -44,10 +46,12 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dishes', dishRoutes);
-app.use('/api/admin', orderRoutes);
+// app.use('/api/admin', orderRoutes);
 app.use('/api/vouchers', voucherRoutes);
 app.use('/api/message', messageRoutes);
 app.use('/api/room', roomRoutes);
+app.use('/api/restaurant', restaurantRoutes);
+app.use('/api/admin', adminRoutes);
 
 
 const PORT = process.env.PORT || 5000;
