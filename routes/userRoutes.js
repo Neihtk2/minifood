@@ -3,7 +3,7 @@ const express = require('express');
 const {
   getUserProfile,
   updateUserProfile,
-  getUsers, changePassword
+  getUsers, changePassword, saveFcmToken, deleteUser, searchUsers
 } = require('../controllers/userController');
 // const orderController = require('../controllers/orderController');
 // const cartController = require('../controllers/cartController');
@@ -33,9 +33,13 @@ router.route('/cart').post(
   checkRole('user', 'staff'),
   updateCartItemQuantity
 );
+router.get('/search', protect, checkRole('admin'), searchUsers);
+router.delete('/delete-user/:id', protect, checkRole("admin"), deleteUser);
 router.post('/change-password', protect, changePassword);
 router.route('/profile')
   .get(protect, getUserProfile)
   .put(protect, upload.single('image'), updateUserProfile);
+// routes/userRoutes.js
+router.post('/save-fcm-token', protect, saveFcmToken);
 
 module.exports = router;

@@ -19,13 +19,11 @@ router.get('/', getDishes);
 router.get('/newDish', getNewDishes);
 router.get('/:id', getDishById);
 
-
-// Admin routes (kèm xử lý upload ảnh)
 router.post(
   '/',
   protect,
   checkRole('admin'),
-  upload.single('image'), // Thêm middleware upload cho trường 'image'
+  upload.single('image'),
   createDish
 );
 router.post('/ratings', protect, addRating);
@@ -34,7 +32,7 @@ router.put(
   '/:id',
   protect,
   checkRole('admin'),
-  upload.single('image'), // Thêm middleware upload cho trường 'image'
+  upload.single('image'),
   updateDish
 );
 

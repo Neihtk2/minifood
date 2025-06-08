@@ -98,13 +98,13 @@ const updateVoucher = asyncHandler(async (req, res) => {
         });
 
     } catch (error) {
-        await session.abortTransaction();
+        // await session.abortTransaction();
         res.status(500).json({
             success: false,
             message: "Lỗi cập nhật voucher: " + error.message
         });
     } finally {
-        session.endSession();
+        // session.endSession();
     }
 });
 

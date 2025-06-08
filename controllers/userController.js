@@ -188,9 +188,70 @@ const changePassword = asyncHandler(async (req, res) => {
 
   res.json({ message: 'Đổi mật khẩu thành công' });
 });
+// controllers/userController.js
+const saveFcmToken = asyncHandler(async (req, res) => {
+  const { fcm_token } = req.body;
+
+  if (!fcm_token) {
+    return res.status(400).json({
+      success: false,
+      message: "Token là bắt buộc"
+    });
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { fcmToken: fcm_token },
+    { new: true }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "FCM token đã được lưu thành công",
+    data: user
+  });
+});
+const deleteUser = async (req, res) => {
+  try {
+    const userId = Number(req.params.id); // chuyển về dạng số
+    const user = await User.findOne({ id: userId }); // tìm theo trường `id` (số)
+
+    if (!user) return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
+
+    await user.deleteOne();
+
+    res.json({ success: true, message: "Đã xóa người dùng thành công" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Lỗi khi xóa người dùng", error: err.message });
+  }
+};
+const searchUsers = async (req, res) => {
+  try {
+    const keyword = req.query.q;
+    if (!keyword) {
+      return res.status(400).json({ success: false, message: "Thiếu từ khóa tìm kiếm" });
+    }
+
+    const users = await User.find({
+      $or: [
+        { name: new RegExp(keyword, 'i') },
+        { email: new RegExp(keyword, 'i') },
+      ]
+    }).select('-password');
+
+    res.json({ success: true, count: users.length, data: users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Lỗi tìm kiếm", error: err.message });
+  }
+};
+
+
 module.exports = {
   getUserProfile,
   updateUserProfile,
   getUsers,
-  changePassword
+  changePassword,
+  saveFcmToken,
+  deleteUser,
+  searchUsers
 };
