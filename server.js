@@ -46,7 +46,6 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dishes', dishRoutes);
-// app.use('/api/admin', orderRoutes);
 app.use('/api/vouchers', voucherRoutes);
 app.use('/api/message', messageRoutes);
 app.use('/api/room', roomRoutes);

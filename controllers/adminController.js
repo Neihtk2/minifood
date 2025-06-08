@@ -8,12 +8,32 @@ const Voucher = require('../models/voucher');
 // 1. Quản lý người dùng
 const getUsers = async (req, res) => {
     try {
-        const users = await User.find();
-        res.json(users);
+        // Lấy page và limit từ query, mặc định nếu không có
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Lấy tổng số người dùng để tính totalPages
+        const [users, totalCount] = await Promise.all([
+            User.find().skip(skip).limit(limit),
+            User.countDocuments()
+        ]);
+
+        res.json({
+            success: true,
+            currentPage: page,
+            totalPages: Math.ceil(totalCount / limit),
+            totalItems: totalCount,
+            data: users
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi lấy danh sách người dùng' });
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi khi lấy danh sách người dùng'
+        });
     }
 };
+;
 
 const deleteUser = async (req, res) => {
     try {
@@ -46,8 +66,22 @@ const updateUserProfile = async (req, res) => {
 // 2. Quản lý món ăn
 const getDishes = async (req, res) => {
     try {
-        const dishes = await Dish.find();
-        res.json(dishes);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const [dishes, totalCount] = await Promise.all([
+            Dish.find().sort({ name: 1 }).skip(skip).limit(limit),
+            Dish.countDocuments()
+        ]);
+
+        res.json({
+            success: true,
+            currentPage: page,
+            totalPages: Math.ceil(totalCount / limit),
+            totalItems: totalCount,
+            data: dishes
+        });
     } catch (error) {
         res.status(500).json({ message: 'Lỗi khi lấy danh sách món ăn' });
     }
@@ -85,12 +119,119 @@ const deleteDish = async (req, res) => {
 };
 
 // 3. Quản lý đơn hàng
+// const getOrders = async (req, res) => {
+//     try {
+//         const page = parseInt(req.query.page) || 1;
+//         const limit = parseInt(req.query.limit) || 10;
+//         const skip = (page - 1) * limit;
+
+//         const { search = "", status, startDate, endDate } = req.query;
+
+//         const query = {};
+
+//         if (search) {
+//             const regex = new RegExp(search, "i");
+
+//             // Kiểm tra xem search có phải là ObjectId hợp lệ không
+//             const isObjectId = /^[0-9a-fA-F]{24}$/.test(search);
+
+//             if (isObjectId) {
+//                 query.$or = [
+//                     { customerName: { $regex: regex } },
+//                     { _id: search }  // tìm chính xác theo ObjectId
+//                 ];
+//             } else {
+//                 query.customerName = { $regex: regex };
+//             }
+//         }
+
+
+//         if (status && status !== "all") {
+//             query.status = status;
+//         }
+
+//         if (startDate || endDate) {
+//             query.createdAt = {};
+//             if (startDate) query.createdAt.$gte = new Date(startDate);
+//             if (endDate) query.createdAt.$lte = new Date(endDate);
+//         }
+
+//         const [orders, totalCount] = await Promise.all([
+//             Order.find(query).skip(skip).limit(limit),
+//             Order.countDocuments(query)
+//         ]);
+
+//         res.json({
+//             success: true,
+//             currentPage: page,
+//             totalPages: Math.ceil(totalCount / limit),
+//             totalItems: totalCount,
+//             data: orders
+//         });
+//     } catch (error) {
+//         res.status(500).json({
+//             success: false,
+//             message: 'Lỗi khi lấy danh sách đơn hàng'
+//         });
+//     }
+// };
+
 const getOrders = async (req, res) => {
     try {
-        const orders = await Order.find();
-        res.json(orders);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const { search = "", status, startDate, endDate } = req.query;
+
+        const query = {};
+
+        // Tìm kiếm theo tên khách hàng hoặc _id (chuỗi)
+        if (search) {
+            const regex = new RegExp(search, "i");
+            query.$or = [
+                { customerName: { $regex: regex } },
+                {
+                    // So sánh theo chuỗi ObjectId
+                    _id: {
+                        $in: await Order.find().select("_id").then(docs =>
+                            docs
+                                .filter(doc => doc._id.toString().includes(search))
+                                .map(doc => doc._id)
+                        )
+                    }
+                }
+            ];
+        }
+
+        if (status && status !== "all") {
+            query.status = status;
+        }
+
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) query.createdAt.$gte = new Date(startDate);
+            if (endDate) query.createdAt.$lte = new Date(endDate);
+        }
+
+        const [orders, totalCount] = await Promise.all([
+            Order.find(query).skip(skip).limit(limit),
+            Order.countDocuments(query)
+        ]);
+
+        res.json({
+            success: true,
+            currentPage: page,
+            totalPages: Math.ceil(totalCount / limit),
+            totalItems: totalCount,
+            data: orders
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi lấy danh sách đơn hàng' });
+        console.error(error)
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi khi lấy danh sách đơn hàng'
+        });
     }
 };
 
@@ -109,7 +250,7 @@ const getStats = async (req, res) => {
     try {
         const totalIncome = await Order.aggregate([
             { $match: { status: 'completed' } },
-            { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+            { $group: { _id: null, total: { $sum: '$total' } } }
         ]);
         res.json({ totalIncome: totalIncome[0]?.total || 0 });
     } catch (error) {
@@ -117,17 +258,73 @@ const getStats = async (req, res) => {
     }
 };
 
+
 // 5. Quản lý mã giảm giá (Voucher)
-const createVoucher = async (req, res) => {
-    const { code, discount, expiresAt } = req.body;
+const getAllVouchers = async (req, res) => {
     try {
-        const newVoucher = new Voucher({ code, discount, expiresAt });
-        await newVoucher.save();
-        res.status(201).json(newVoucher);
+        const vouchers = await Voucher.find().sort({ createdAt: -1 });
+        res.json({ success: true, data: vouchers });
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi tạo mã giảm giá' });
+        res.status(500).json({ success: false, message: 'Không thể tải danh sách voucher' });
     }
 };
+const getVoucherById = async (req, res) => {
+    try {
+        const voucher = await Voucher.findById(req.params.id);
+        if (!voucher) return res.status(404).json({ success: false, message: 'Voucher không tồn tại' });
+        res.json(voucher);
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Lỗi server khi lấy voucher' });
+    }
+};
+
+
+const createVoucher = async (req, res) => {
+    try {
+        const {
+            code,
+            description,
+            value,
+            minOrderValue,
+            startDate,
+            endDate,
+            maxUses,
+            maxUsagePerUser
+        } = req.body;
+
+        const newVoucher = new Voucher({
+            code,
+            description,
+            value,
+            minOrderValue,
+            startDate,
+            endDate,
+            maxUses,
+            maxUsagePerUser,
+            usedCount: 0,
+            isActive: true
+        });
+
+        await newVoucher.save();
+        res.status(201).json({ success: true, data: newVoucher });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi khi tạo mã giảm giá' });
+    }
+};
+const updateVoucher = async (req, res) => {
+    try {
+        const voucher = await Voucher.findByIdAndUpdate(req.params.id, req.body, {
+            new: true,
+            runValidators: true
+        });
+        if (!voucher) return res.status(404).json({ success: false, message: 'Mã giảm giá không tồn tại' });
+        res.json({ success: true, data: voucher });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi khi cập nhật mã giảm giá' });
+    }
+};
+
+
 
 const deleteVoucher = async (req, res) => {
     try {
@@ -153,4 +350,7 @@ module.exports = {
     getStats,
     createVoucher,
     deleteVoucher,
+    updateVoucher,
+    getAllVouchers,
+    getVoucherById
 };
